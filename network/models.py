@@ -39,6 +39,7 @@ class Posts(models.Model):
 
     def serialize(self):
         return {
+            "id": self.id,
             "user": self.get_display_user(self.user),
             "body": self.body,
             "likes": self.likes,
