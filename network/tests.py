@@ -3,17 +3,71 @@ from django.test import Client, TestCase
 
 from network.models import Posts, User
 
-# Create your tests here.
 
+# Create your tests here.
+class PostModelTest(TestCase):
+    def setUp(self):
+        self.active_user = User.objects.create_user(
+            username="active_user", password="123456"
+        )
+        self.inactive_user = User.objects.create_user(
+            username="inactive_user", password="123456", is_active=False
+        )
+        self.deleted_user = User.objects.create_user(
+            username="deleted_user", password="123456"
+        )
+
+        self.post_active_user = Posts.objects.create(
+            user=self.active_user, body="1st post"
+        )
+        self.post_inactive_user = Posts.objects.create(
+            user=self.inactive_user, body="2nd post"
+        )
+        self.post_deleted_user = Posts.objects.create(
+            user=self.deleted_user, body="3rd post"
+        )
+        self.deleted_user.delete()
+
+        self.comment = Posts.objects.create(
+            user=self.active_user, body="A comment", parent=self.post_active_user
+        )
+
+    def test_post_with_active_user(self):
+        serialized_post = self.post_active_user.serialize()
+        self.assertEqual(serialized_post["user"], "active_user")
+    
+    def test_post_with_inactive_user(self):
+        serialized_post = self.post_inactive_user.serialize()
+        self.assertEqual(serialized_post["user"], "user removed")
+        
+    def test_post_with_deleted_user(self):
+        self.deleted_user.delete()
+        self.post_deleted_user.refresh_from_db()
+        serialized_post = self.post_deleted_user.serialize()
+        self.assertEqual(serialized_post["user"], "user removed")
+    
+    def test_comment_serialization(self):
+        serialized_comment = self.comment.serialize_comments(self.comment)
+        
+        self.assertEqual(serialized_comment["body"], "A comment")
+        self.assertEqual(serialized_comment["user"], "active_user")
+        self.assertEqual(serialized_comment["likes"], 0)
+
+    def test_comment_with_inactive_user(self):
+        self.comment.user = self.inactive_user
+        self.comment.save()
+        
+        serialized_comment = self.comment.serialize_comments(self.comment)
+        self.assertEqual(serialized_comment["user"], "user removed")
 
 class SharePostTest(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="teste", password="123456")
+        self.user = User.objects.create_user(username="test", password="123456")
         self.client = Client()
-        self.client.login(username="teste", password="123456")
+        self.client.login(username="test", password="123456")
 
     def test_post_creation(self):
-        post_body = "Post teste"
+        post_body = "Post test"
         response = self.client.post(
             "/posts",
             data=json.dumps({"body": post_body}),
