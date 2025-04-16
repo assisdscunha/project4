@@ -60,6 +60,26 @@ class PostModelTest(TestCase):
         self.assertEqual(serialized_comment["user"], "user removed")
 
 
+class UserModelTest(TestCase):
+    def setUp(self):
+        self.user0 = User.objects.create_user(username="teste0", password="123456")
+        self.user1 = User.objects.create_user(username="teste1", password="123456")
+        self.user2 = User.objects.create_user(username="teste2", password="123456")
+        self.user3 = User.objects.create_user(username="teste3", password="123456")
+        self.user4 = User.objects.create_user(username="teste4", password="123456")
+        self.user5 = User.objects.create_user(username="teste5", password="123456")
+        self.user6 = User.objects.create_user(username="teste6", password="123456")
+
+        self.user0.following.add(
+            self.user1, self.user2, self.user3, self.user5, self.user6
+        )
+
+    def test_user_followers(self):
+        following_usernames = [user.username for user in self.user0.following.all()]
+        expected_usernames = ["teste1", "teste2", "teste3", "teste5", "teste6"]
+        self.assertListEqual(following_usernames, expected_usernames)
+
+
 class PostByIdEndpointTest(TestCase):
     def setUp(self):
         self.client = Client()
@@ -115,7 +135,7 @@ class PostByIdEndpointTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 204)
-        
+
         self.post.refresh_from_db()
         self.assertEqual(self.post.body, "Just a test!")
 
@@ -129,7 +149,7 @@ class PostByIdEndpointTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 204)
-        
+
         self.comment.refresh_from_db()
         self.assertEqual(self.comment.body, "Just another test!")
         self.assertEqual(self.comment.likes, 10)
@@ -157,9 +177,10 @@ class PostByIdEndpointTest(TestCase):
             data=json.dumps({"one key": "Just a key test!"}),
             content_type="application/json",
         )
-        
+
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json().get("error"), "GET or PUT request required.")
+
 
 class SharePostTest(TestCase):
     def setUp(self):
