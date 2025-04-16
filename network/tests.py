@@ -26,7 +26,6 @@ class PostModelTest(TestCase):
         self.post_deleted_user = Posts.objects.create(
             user=self.deleted_user, body="3rd post"
         )
-        self.deleted_user.delete()
 
         self.comment = Posts.objects.create(
             user=self.active_user, body="A comment", parent=self.post_active_user
@@ -35,20 +34,20 @@ class PostModelTest(TestCase):
     def test_post_with_active_user(self):
         serialized_post = self.post_active_user.serialize()
         self.assertEqual(serialized_post["user"], "active_user")
-    
+
     def test_post_with_inactive_user(self):
         serialized_post = self.post_inactive_user.serialize()
         self.assertEqual(serialized_post["user"], "user removed")
-        
+
     def test_post_with_deleted_user(self):
         self.deleted_user.delete()
         self.post_deleted_user.refresh_from_db()
         serialized_post = self.post_deleted_user.serialize()
         self.assertEqual(serialized_post["user"], "user removed")
-    
+
     def test_comment_serialization(self):
         serialized_comment = self.comment.serialize_comments(self.comment)
-        
+
         self.assertEqual(serialized_comment["body"], "A comment")
         self.assertEqual(serialized_comment["user"], "active_user")
         self.assertEqual(serialized_comment["likes"], 0)
@@ -56,9 +55,111 @@ class PostModelTest(TestCase):
     def test_comment_with_inactive_user(self):
         self.comment.user = self.inactive_user
         self.comment.save()
-        
+
         serialized_comment = self.comment.serialize_comments(self.comment)
         self.assertEqual(serialized_comment["user"], "user removed")
+
+
+class PostByIdEndpointTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+        self.user = User.objects.create_user(username="test", password="123456")
+        self.post = Posts.objects.create(user=self.user, body="Just a post.")
+
+        self.user2 = User.objects.create_user(username="2nd test", password="123456")
+        self.comment = Posts.objects.create(
+            user=self.user2, body="My comment", parent=self.post
+        )
+
+    def test_invalid_post_id(self):
+        self.client.logout()
+        self.client.login(username="test", password="123456")
+
+        response = self.client.get(
+            "/posts/9999", content_type="text/html; charset=utf-8"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get("error"), "Post cannot be found.")
+
+    def test_get_method(self):
+        self.client.logout()
+        self.client.login(username="test", password="123456")
+
+        response = self.client.get(f"/posts/{self.post.id}")
+        serialized_post = self.post.serialize()
+        self.assertDictEqual(response.json(), serialized_post)
+
+    def test_put_method_wrong_user(self):
+        self.client.logout()
+        self.client.login(username="2nd test", password="123456")
+
+        response = self.client.put(
+            f"/posts/{self.post.id}",
+            data=json.dumps({"body": "Just a test!"}),
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.json().get("error"),
+            "User post not the same as requested.",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_put_method_update_post_body(self):
+        self.client.logout()
+        self.client.login(username="test", password="123456")
+
+        response = self.client.put(
+            f"/posts/{self.post.id}",
+            data=json.dumps({"body": "Just a test!"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 204)
+        
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.body, "Just a test!")
+
+    def test_put_method_update_comment_body(self):
+        self.client.logout()
+        self.client.login(username="2nd test", password="123456")
+
+        response = self.client.put(
+            f"/posts/{self.comment.id}",
+            data=json.dumps({"body": "Just another test!", "likes": 10}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 204)
+        
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, "Just another test!")
+        self.assertEqual(self.comment.likes, 10)
+
+    def test_put_method_invalid_keys(self):
+        self.client.logout()
+        self.client.login(username="test", password="123456")
+
+        response = self.client.put(
+            f"/posts/{self.post.id}",
+            data=json.dumps({"one key": "Just a key test!"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json().get("error"), "Only 'body' or 'likes' fields are allowed."
+        )
+
+    def test_post_method(self):
+        self.client.logout()
+        self.client.login(username="test", password="123456")
+
+        response = self.client.post(
+            f"/posts/{self.post.id}",
+            data=json.dumps({"one key": "Just a key test!"}),
+            content_type="application/json",
+        )
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get("error"), "GET or PUT request required.")
 
 class SharePostTest(TestCase):
     def setUp(self):

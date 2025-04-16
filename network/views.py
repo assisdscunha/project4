@@ -77,31 +77,63 @@ def share_post(request):
 
     try:
         data = json.loads(request.body)
-        body = data.get("body", "")
-        parent_id = data.get("parent")
-
-        if not body:
-            return JsonResponse({"error": "Post body cannot be empty."}, status=400)
-
-        parent_post = None
-        if parent_id:
-            try:
-                parent_post = Posts.objects.get(id=parent_id)
-            except Posts.DoesNotExist:
-                return JsonResponse({"error": "Post cannot be found."}, status=400)
-
-        media_post = Posts(
-            user=request.user,
-            body=body,
-            parent=parent_post
-        )
-        media_post.save()
-        return JsonResponse({"message": "Post has been successfully added"}, status=201)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    body = data.get("body", "")
+    parent_id = data.get("parent")
 
-def post(request): ...
+    if not body:
+        return JsonResponse({"error": "Post body cannot be empty."}, status=400)
+
+    parent_post = None
+    if parent_id:
+        try:
+            parent_post = Posts.objects.get(id=parent_id)
+        except Posts.DoesNotExist:
+            return JsonResponse({"error": "Post cannot be found."}, status=400)
+
+    media_post = Posts(user=request.user, body=body, parent=parent_post)
+    media_post.save()
+    return JsonResponse({"message": "Post has been successfully added"}, status=201)
+
+
+
+@csrf_exempt
+@login_required
+def post(request, post_id):
+    try:
+        social_post = Posts.objects.get(id=post_id)
+    except Posts.DoesNotExist:
+        return JsonResponse({"error": "Post cannot be found."}, status=400)
+
+    if request.method == "GET":
+        return JsonResponse(social_post.serialize())
+
+    elif request.method == "PUT":
+        if social_post.user != request.user:
+            return JsonResponse({"error": "User post not the same as requested."}, status=401)
+        
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        
+        allowed_keys = {"body", "likes"}
+        if not set(data.keys()).issubset(allowed_keys):
+            return JsonResponse({"error": "Only 'body' or 'likes' fields are allowed."}, status=400)
+        
+        if data.get("body") is not None:
+            social_post.body = data["body"]
+        if data.get("likes") is not None:
+            social_post.likes = data["likes"]
+        social_post.save()
+
+        return HttpResponse(status=204)
+        
+
+    else:
+        return JsonResponse({"error": "GET or PUT request required."}, status=400)
 
 
 def page(request): ...
