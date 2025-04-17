@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from django.test import Client, TestCase
 
@@ -17,8 +18,10 @@ class BaseTestCase(TestCase):
             username=username, password="123456", is_active=is_active
         )
 
-    def create_post(self, user=None, body="Test post", parent=None):
-        return Posts.objects.create(user=user or self.user, body=body, parent=parent)
+    def create_post(self, user=None, body="Test post", parent=None, likes=0):
+        return Posts.objects.create(
+            user=user or self.user, body=body, parent=parent, likes=likes
+        )
 
     def login_as(self, user):
         self.client.logout()
@@ -96,8 +99,8 @@ class UserModelTest(BaseTestCase):
             self.user.serialize(),
             {
                 "username": "test",
-                "followers": [self.alice],
-                "following": [self.alice, self.bob, self.charlie],
+                "followers": ["alice"],
+                "following": ["alice", "bob", "charlie"],
             },
         )
 
@@ -247,3 +250,114 @@ class SharePostTest(BaseTestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Post cannot be found.", response.json().get("error"))
+
+class PageTestMixin:
+    def assert_valid_response(self, page_name):
+        response = self.client.get(f"/posts/{page_name}")
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+    def assert_valid_post_structure(self, post):
+        keys = {"body", "likes", "timestamp", "comments", "user"}
+        self.assertTrue(keys.issubset(post.keys()))
+    
+    def assert_posts_validity(self, data, expected_len):
+        self.assertIn("posts", data)
+        self.assertIsInstance(data["posts"], list)
+        self.assertEqual(len(data["posts"]), expected_len)
+
+    def assert_post_order_by_timestamp_desc(self, posts):
+        fmt = "%b %d %Y, %I:%M %p"
+        timestamps = [datetime.strptime(post["timestamp"], fmt) for post in posts]
+        self.assertEqual(timestamps, sorted(timestamps, reverse=True))
+
+class GetPageTest(BaseTestCase, PageTestMixin):
+    def setUp(self):
+        super().setUp()
+        self.post1 = self.create_post(body="Post 1")
+        self.post2 = self.create_post(body="Post 2")
+        self.post3 = self.create_post(body="Post 3", user=self.user2, likes=10)
+        self.post3 = self.create_post(body="Post 4", user=self.user2, likes=5)
+        self.user.following.add(self.user2)
+
+    def test_put_request_method(self):
+        response = self.client.put(
+            "/posts/random_page", content_type="/application/json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get("error"), "GET request required.")
+
+    def test_post_request_method(self):
+        response = self.client.post(
+            "/posts/random_page", content_type="/application/json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get("error"), "GET request required.")
+    
+    def test_invalid_page(self):
+        response = self.client.get("/posts/invalid_name")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json().get("error"), "Page not found.")
+
+    def test_profile_page(self):
+        data = self.assert_valid_response("profile")
+
+        self.assertIn("username", data)
+        self.assertEqual(data["username"], self.user.username)
+
+        self.assert_posts_validity(data, 2)
+
+        post = data["posts"][0]
+        self.assert_valid_post_structure(post)
+
+        self.assertEqual(post["body"], "Post 2")
+        self.assertEqual(post["likes"], 0)
+        self.assertEqual(post["comments"], [])
+        self.assertIsInstance(post["timestamp"], str)
+        self.assertEqual(post["user"], "test")
+
+        bodies = [post["body"] for post in data["posts"]]
+        self.assertNotIn("Post 3", bodies)
+        
+        self.assert_post_order_by_timestamp_desc(data["posts"])
+
+    def test_all_page(self):
+        data = self.assert_valid_response("all")
+
+        self.assert_posts_validity(data, 4)
+
+        post = data["posts"][0]
+        self.assert_valid_post_structure(post)
+
+        self.assertEqual(post["body"], "Post 4")
+        self.assertEqual(post["likes"], 5)
+        self.assertEqual(post["comments"], [])
+        self.assertIsInstance(post["timestamp"], str)
+        self.assertEqual(post["user"], "second")
+
+        post = data["posts"][-1]
+        self.assert_valid_post_structure(post)
+
+        self.assertEqual(post["body"], "Post 1")
+        self.assertEqual(post["likes"], 0)
+        self.assertEqual(post["comments"], [])
+        self.assertIsInstance(post["timestamp"], str)
+        self.assertEqual(post["user"], "test")
+        
+        self.assert_post_order_by_timestamp_desc(data["posts"])
+
+    def test_following_page(self):
+        data = self.assert_valid_response("following")
+
+        self.assert_posts_validity(data, 2)
+
+        post = data["posts"][1]
+        self.assert_valid_post_structure(post)
+
+        self.assertEqual(post["body"], "Post 3")
+        self.assertEqual(post["likes"], 10)
+        self.assertEqual(post["comments"], [])
+        self.assertIsInstance(post["timestamp"], str)
+        self.assertEqual(post["user"], "second")
+        
+        self.assert_post_order_by_timestamp_desc(data["posts"])
