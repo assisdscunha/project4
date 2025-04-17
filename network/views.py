@@ -169,7 +169,8 @@ def page(request, page_name):
         "following": handle_following,
     }
 
-    if page_name in handlers:
-        return handlers[page_name](request)
+    handler = handlers.get(page_name)
+    if handler:
+        return handler(request)
 
     return JsonResponse({"error": "Page not found."}, status=404)
