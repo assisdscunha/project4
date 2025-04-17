@@ -148,14 +148,14 @@ def handle_profile(request):
 def handle_all(request):
     all_post_data = Posts.objects.all()
     data = [post.serialize() for post in all_post_data]
-    return JsonResponse({"posts": data}, safe=False)
+    return JsonResponse({"posts": data})
 
 
 def handle_following(request):
     following = request.user.following.all()
     posts = Posts.objects.filter(user__in=following)
     data = [post.serialize() for post in posts]
-    return JsonResponse({"posts": data}, safe=False)
+    return JsonResponse({"posts": data})
 
 
 @login_required
