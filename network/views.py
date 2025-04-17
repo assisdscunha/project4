@@ -138,27 +138,38 @@ def post(request, post_id):
         return JsonResponse({"error": "GET or PUT request required."}, status=400)
 
 
+def handle_profile(request):
+    user_data = request.user.serialize()
+    all_post_data = Posts.objects.filter(user=request.user)
+    user_data["posts"] = [post.serialize() for post in all_post_data]
+    return JsonResponse(user_data)
+
+
+def handle_all(request):
+    all_post_data = Posts.objects.all()
+    data = [post.serialize() for post in all_post_data]
+    return JsonResponse({"posts": data}, safe=False)
+
+
+def handle_following(request):
+    following = request.user.following.all()
+    posts = Posts.objects.filter(user__in=following)
+    data = [post.serialize() for post in posts]
+    return JsonResponse({"posts": data}, safe=False)
+
+
 @login_required
 def page(request, page_name):
     if request.method != "GET":
         return JsonResponse({"error": "GET request required."}, status=400)
 
-    if page_name == "profile":
-        user_data = request.user.serialize()
-        all_post_data = Posts.objects.filter(user=request.user)
-        user_data["posts"] = [post.serialize() for post in all_post_data]
-        return JsonResponse(user_data)
+    handlers = {
+        "profile": handle_profile,
+        "all": handle_all,
+        "following": handle_following,
+    }
 
-    elif page_name == "all":
-        all_post_data = Posts.objects.all()
-        data = [post.serialize() for post in all_post_data]
-        return JsonResponse(data, safe=False)
+    if page_name in handlers:
+        return handlers[page_name](request)
 
-    elif page_name == "following":
-        following = request.user.following.all()
-        posts = Posts.objects.filter(user__in=following)
-        data = [post.serialize() for post in posts]
-        return JsonResponse(data, safe=False)
-
-    else:
-        return JsonResponse({"error": "Page not found."}, status=404)
+    return JsonResponse({"error": "Page not found."}, status=404)
