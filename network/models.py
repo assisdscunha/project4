@@ -10,8 +10,8 @@ class User(AbstractUser):
     def serialize(self):
         return {
             "username": self.username,
-            "followers": [f for f in self.followers.all()],
-            "following": [f for f in self.following.all()],
+            "followers": [f.username for f in self.followers.all()],
+            "following": [f.username for f in self.following.all()],
         }
 
 
@@ -49,3 +49,6 @@ class Posts(models.Model):
                 for comment in self.comments.all()
             ],
         }
+
+    class Meta:
+        ordering = ["-timestamp"]
