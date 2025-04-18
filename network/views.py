@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 
 from .models import Posts, User
 
@@ -138,24 +139,45 @@ def post(request, post_id):
         return JsonResponse({"error": "GET or PUT request required."}, status=400)
 
 
-def handle_profile(request):
-    user_data = request.user.serialize()
-    all_post_data = Posts.objects.filter(user=request.user)
-    user_data["posts"] = [post.serialize() for post in all_post_data]
-    return JsonResponse(user_data)
+def paginated_response(request, queryset):
+    serialized = [item.serialize() for item in queryset]
+    page_number = request.GET.get("page", 1)
+    paginator = Paginator(serialized, 10)
+
+    try:
+        page_obj = paginator.page(page_number)
+    except:
+        return {"error": "Invalid page number.", "status": 400}
+
+    return {
+        "data": page_obj.object_list,
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+        "num_pages": paginator.num_pages,
+        "current_page": page_obj.number,
+    }
 
 
 def handle_all(request):
-    all_post_data = Posts.objects.all()
-    data = [post.serialize() for post in all_post_data]
-    return JsonResponse({"posts": data})
+    result = paginated_response(request, Posts.objects.all())
+    status = result.pop("status", 200)
+    return JsonResponse(result, status=status)
 
 
 def handle_following(request):
-    following = request.user.following.all()
-    posts = Posts.objects.filter(user__in=following)
-    data = [post.serialize() for post in posts]
-    return JsonResponse({"posts": data})
+    result = paginated_response(
+        request, Posts.objects.filter(user__in=request.user.following.all())
+    )
+    status = result.pop("status", 200)
+    return JsonResponse(result, status=status)
+
+
+def handle_profile(request):
+    user_data = request.user.serialize()
+    result = paginated_response(request, Posts.objects.filter(user=request.user))
+    status = result.pop("status", 200)
+    user_data.update(result)
+    return JsonResponse(user_data, status=status)
 
 
 @login_required
