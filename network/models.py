@@ -20,7 +20,6 @@ class Posts(models.Model):
         "User", on_delete=models.SET_NULL, null=True, related_name="posts"
     )
     body = models.TextField(blank=False)
-    likes = models.IntegerField(default=0)
     timestamp = models.DateTimeField(auto_now_add=True)
     parent = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE, related_name="comments"
@@ -37,18 +36,26 @@ class Posts(models.Model):
             "timestamp": comment.timestamp.strftime("%b %d %Y, %I:%M %p"),
         }
 
-    def serialize(self):
+    def serialize(self, current_user=None):
         return {
             "id": self.id,
             "user": self.get_display_user(self.user),
             "body": self.body,
-            "likes": self.likes,
+            "likes": self.liked_by.count(),
             "timestamp": self.timestamp.strftime("%b %d %Y, %I:%M %p"),
             "comments": [
                 self.serialize_comments(comment)
                 for comment in self.comments.all()
             ],
+            "liked": self.liked_by.filter(user=current_user).exists() if current_user else False
         }
 
     class Meta:
         ordering = ["-timestamp"]
+        
+class Like(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="liked")
+    post = models.ForeignKey(Posts, on_delete=models.CASCADE, related_name="liked_by")
+    
+    class Meta:
+        unique_together = ("user", "post")

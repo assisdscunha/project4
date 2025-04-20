@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 
-from .models import Posts, User
+from .models import Like, Posts, User
 
 
 def index(request):
@@ -108,20 +108,32 @@ def post(request, post_id):
         return JsonResponse({"error": "Post cannot be found."}, status=400)
 
     if request.method == "GET":
-        return JsonResponse(social_post.serialize())
+        return JsonResponse(social_post.serialize(current_user=request.user))
 
     elif request.method == "PUT":
-        if social_post.user != request.user:
-            return JsonResponse(
-                {"error": "User post not the same as requested."}, status=401
-            )
-
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON."}, status=400)
 
-        allowed_keys = {"body", "likes"}
+        if data.get("action") == "toggle_like":
+            like_obj, created = Like.objects.get_or_create(
+                user=request.user, post=social_post
+            )
+            if not created:
+                like_obj.delete()
+                liked = False
+            else:
+                liked = True
+
+            return JsonResponse({"likes": social_post.liked_by.count(), "liked": liked})
+
+        if social_post.user != request.user:
+            return JsonResponse(
+                {"error": "User post not the same as requested."}, status=401
+            )
+
+        allowed_keys = {"body"}
         if not set(data.keys()).issubset(allowed_keys):
             return JsonResponse(
                 {"error": "Only 'body' or 'likes' fields are allowed."}, status=400
@@ -129,18 +141,17 @@ def post(request, post_id):
 
         if data.get("body") is not None:
             social_post.body = data["body"]
-        if data.get("likes") is not None:
-            social_post.likes = data["likes"]
-        social_post.save()
+            social_post.save()
+            return HttpResponse(status=204)
 
-        return HttpResponse(status=204)
+        return JsonResponse({"error": "No valid update fields provided."}, status=400)
 
     else:
         return JsonResponse({"error": "GET or PUT request required."}, status=400)
 
 
 def paginated_response(request, queryset):
-    serialized = [item.serialize() for item in queryset]
+    serialized = [item.serialize(current_user=request.user) for item in queryset]
     page_number = request.GET.get("page", 1)
     paginator = Paginator(serialized, 10)
 
