@@ -1,0 +1,39 @@
+.body {
+  margin: 0 10rem 0 10rem;
+}
+
+textarea {
+  min-height: 5rem;
+  max-width: 50rem;
+}
+
+.right-aligned-button {
+  max-width: 50rem;
+}
+
+#view-title,
+#new-post-form {
+  padding-left: 1rem;
+}
+
+.post-element + .post-element {
+  margin-top: 2rem;
+}
+
+.like-count {
+  font-size: 1.2rem; /* Tamanho da fonte do número de likes */
+  color: #6c757d; /* Cor cinza para o número de likes */
+}
+
+.bi-heart, .bi-heart-fill {
+  color: #6c757d; /* cor padrão cinza */
+  cursor: pointer;
+}
+
+.bi-heart-fill {
+  color: red; /* cor vermelha para curtido */
+}
+
+.bi-heart:hover {
+  color: red; /* cor vermelha ao passar mouse no não curtido */
+}
