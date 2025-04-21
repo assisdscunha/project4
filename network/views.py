@@ -198,7 +198,7 @@ def handle_profile(request, username=None):
     result = paginated_response(request, Posts.objects.filter(user=user))
     status = result.pop("status", 200)
     user_data.update(result)
-    user_data.update({"page_name": f"{user.username}'s Posts"})
+    user_data.update({"page_name": f"{user.username}'s Profile"})
     return JsonResponse(user_data, status=status)
 
 
