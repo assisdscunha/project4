@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function loadPosts(page_name) {
   const postsContainer = document.querySelector("#posts-view");
+  postsContainer.innerHTML = "";
   // Display only the div of ID posts-view
   postsContainer.style.display = "block";
   document.querySelector("#following-view").style.display = "none";
@@ -106,8 +107,13 @@ function insertNewPost() {
       body: document.querySelector("#post-body").value,
       parent: "",
     }),
-  }).catch((error) => {
-    console.error("Erro ao criar o post:", error);
-  });
+  })
+    .then((result) => {
+      console.log(result);
+      loadPosts("all");
+    })
+    .catch((error) => {
+      console.error("Erro ao criar o post:", error);
+    });
   return false;
 }
