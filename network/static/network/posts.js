@@ -1,7 +1,9 @@
 document.addEventListener("DOMContentLoaded", function () {
   const usernameLink = document.querySelector("#username-link");
   if (usernameLink) {
-    usernameLink.addEventListener("click", () => loadPosts("profile"));
+    usernameLink.addEventListener("click", () =>
+      loadPosts(`profile/${usernameLink.textContent.trim()}`)
+    );
   }
   document
     .querySelector("#allposts-link")
@@ -25,11 +27,12 @@ function loadPosts(page_name) {
   document.querySelector("#following-view").style.display = "none";
   document.querySelector("#profile-view").style.display = "none";
 
-  
   fetch(`/posts/${page_name}`)
     .then((response) => response.json())
     .then((data) => {
-      document.querySelector("#view-title").innerHTML = `<h3>${data["page_name"]}</h3>`;
+      document.querySelector(
+        "#view-title"
+      ).innerHTML = `<h3>${data["page_name"]}</h3>`;
       data["data"].forEach((post) => {
         const postElement = document.createElement("div");
         postElement.classList.add("post-element", "card");
@@ -48,7 +51,11 @@ function loadPosts(page_name) {
             <i class="bi ${heartClass} like-icon" style="${hearStyleColor}"></i>
           </div>
         </div>`;
-
+        postElement
+          .querySelector(".card-title")
+          .addEventListener("click", () => {
+            loadPosts(`profile/${post.user}`);
+          });
         const likeIcon = postElement.querySelector(".like-icon");
         likeIcon.dataset.liked = post.liked;
 

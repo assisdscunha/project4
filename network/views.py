@@ -185,12 +185,20 @@ def handle_following(request):
     return JsonResponse(result, status=status)
 
 
-def handle_profile(request):
-    user_data = request.user.serialize()
-    result = paginated_response(request, Posts.objects.filter(user=request.user))
+def handle_profile(request, username=None):
+    if username:
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "User not found"}, status=404)
+    else:
+        user = request.user
+
+    user_data = user.serialize()
+    result = paginated_response(request, Posts.objects.filter(user=user))
     status = result.pop("status", 200)
     user_data.update(result)
-    user_data.update({"page_name": f"{request.user.username}'s Posts"})
+    user_data.update({"page_name": f"{user.username}'s Posts"})
     return JsonResponse(user_data, status=status)
 
 
@@ -200,7 +208,6 @@ def page(request, page_name):
         return JsonResponse({"error": "GET request required."}, status=400)
 
     handlers = {
-        "profile": handle_profile,
         "all": handle_all,
         "following": handle_following,
     }
