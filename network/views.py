@@ -171,6 +171,7 @@ def paginated_response(request, queryset):
 
 def handle_all(request):
     result = paginated_response(request, Posts.objects.all())
+    result.update({"page_name": "Public Feed"})
     status = result.pop("status", 200)
     return JsonResponse(result, status=status)
 
@@ -179,6 +180,7 @@ def handle_following(request):
     result = paginated_response(
         request, Posts.objects.filter(user__in=request.user.following.all())
     )
+    result.update({"page_name": "Following Feed"})
     status = result.pop("status", 200)
     return JsonResponse(result, status=status)
 
@@ -188,6 +190,7 @@ def handle_profile(request):
     result = paginated_response(request, Posts.objects.filter(user=request.user))
     status = result.pop("status", 200)
     user_data.update(result)
+    user_data.update({"page_name": f"{request.user.username}'s Posts"})
     return JsonResponse(user_data, status=status)
 
 

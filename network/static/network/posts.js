@@ -25,10 +25,11 @@ function loadPosts(page_name) {
   document.querySelector("#following-view").style.display = "none";
   document.querySelector("#profile-view").style.display = "none";
 
-  document.querySelector("#view-title").innerHTML = `<h3>Apenas um teste</h3>`;
+  
   fetch(`/posts/${page_name}`)
     .then((response) => response.json())
     .then((data) => {
+      document.querySelector("#view-title").innerHTML = `<h3>${data["page_name"]}</h3>`;
       data["data"].forEach((post) => {
         const postElement = document.createElement("div");
         postElement.classList.add("post-element", "card");
@@ -38,7 +39,7 @@ function loadPosts(page_name) {
         postElement.innerHTML = `
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 class="card-title mb-0">${post.user}</h5>
+            <h5 class="card-title mb-0" style="cursor: pointer">${post.user}</h5>
             <small class="text-muted">${post.timestamp}</small>
           </div>
           <p class="card-text">${post.body}</p>
