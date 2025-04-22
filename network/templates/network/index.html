@@ -21,5 +21,8 @@
   </div>
 {% endblock %}
 {% block script %}
+  <script>
+    const currentUser = '{{ request.user.username|escapejs }}'
+  </script>
   <script src="{% static 'network/posts.js' %}"></script>
 {% endblock %}

@@ -11,7 +11,9 @@ class User(AbstractUser):
         return {
             "username": self.username,
             "followers": [f.username for f in self.followers.all()],
+            "followers_count": self.followers.count(),
             "following": [f.username for f in self.following.all()],
+            "following_count": self.following.count(),
         }
 
 
