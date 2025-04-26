@@ -220,6 +220,72 @@ function renderPosts(postsData) {
   });
 }
 
+function toggleEdit(id, element) {
+  const postBody = element.querySelector(".card-text");
+  const originalText = postBody.textContent;
+
+  const textArea = document.createElement("textarea");
+  textArea.className = "form-control";
+  textArea.value = originalText;
+  postBody.replaceWith(textArea);
+
+  const saveButton = document.createElement("button");
+  saveButton.className = "btn btn-primary btn-sm mb-2";
+  saveButton.textContent = "Save";
+
+  const cancelButton = document.createElement("button");
+  cancelButton.className = "btn btn-secondary btn-sm ml-2 mb-2";
+  cancelButton.textContent = "Cancel";
+
+  const buttonContainer = document.createElement("div");
+  buttonContainer.className = "d-flex justify-content-end mt-2 mb-2";
+  buttonContainer.appendChild(saveButton);
+  buttonContainer.appendChild(cancelButton);
+
+  textArea.insertAdjacentElement("afterend", buttonContainer);
+
+  saveButton.addEventListener("click", () => {
+    const updatedText = textArea.value.trim();
+    if (updatedText === originalText || updatedText === "") {
+      showToast("⚠️ No changes were made to the post.");
+      cancelEdit();
+      return;
+    }
+
+    fetch(`/posts/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ body: updatedText }),
+    })
+      .then((response) => {
+        if (response.status === 204) {
+          // Sucesso, mas sem conteúdo
+          textArea.replaceWith(postBody);
+          postBody.textContent = updatedText;
+          buttonContainer.remove();
+          showToast("✅ Post updated successfully!");
+          return;
+        }
+        if (!response.ok) throw new Error("Failed to update post");
+        return;
+      })
+      .catch((e) => {
+        console.error("Error updating post: ", e);
+        showToast("⚠️ Failed to update post. Please try again.");
+      });
+  });
+
+  cancelButton.addEventListener("click", cancelEdit);
+
+  function cancelEdit() {
+    textArea.replaceWith(postBody);
+    postBody.textContent = originalText;
+    buttonContainer.remove();
+  }
+}
+
 function toggleLike(id, postElement, likeIcon) {
   fetch(`posts/${id}`, {
     method: "PUT",
