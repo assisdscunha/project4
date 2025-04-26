@@ -39,6 +39,9 @@ class Posts(models.Model):
         }
 
     def serialize(self, current_user=None):
+        is_liked = False
+        if current_user and hasattr(current_user, "is_authenticated") and current_user.is_authenticated:
+            is_liked = self.liked_by.filter(user=current_user).exists()
         return {
             "id": self.id,
             "user": self.get_display_user(self.user),
@@ -49,7 +52,7 @@ class Posts(models.Model):
                 self.serialize_comments(comment)
                 for comment in self.comments.all()
             ],
-            "liked": self.liked_by.filter(user=current_user).exists() if current_user else False
+            "liked": is_liked
         }
 
     class Meta:

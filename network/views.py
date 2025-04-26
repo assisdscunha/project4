@@ -151,7 +151,6 @@ def post(request, post_id):
         return JsonResponse({"error": "GET or PUT request required."}, status=400)
 
 
-
 @csrf_exempt
 @require_http_methods(["PUT"])
 @login_required
@@ -172,6 +171,7 @@ def toggle_follow(request, username):
         action = "followed"
 
     return JsonResponse({"message": f"Successfully {action} {username}.", "action": action}, status=200)
+
 
 def paginated_response(request, queryset):
     serialized = [item.serialize(current_user=request.user) for item in queryset]
@@ -225,7 +225,6 @@ def handle_profile(request, username=None):
     return JsonResponse(user_data, status=status)
 
 
-@login_required
 def page(request, page_name):
     if request.method != "GET":
         return JsonResponse({"error": "GET request required."}, status=400)

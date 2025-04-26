@@ -25,6 +25,10 @@ textarea {
   margin-top: 2rem;
 }
 
+.post-element:last-child {
+  margin-bottom: 2rem;
+}
+
 .like-count {
   font-size: 1.2rem; /* Tamanho da fonte do número de likes */
   color: #6c757d; /* Cor cinza para o número de likes */
@@ -69,4 +73,20 @@ textarea {
 .profile-info small {
   font-size: 0.8rem;
   color: #aaa;
+}
+
+@keyframes pop-like {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.like-icon.pop {
+  animation: pop-like 0.3s ease;
 }

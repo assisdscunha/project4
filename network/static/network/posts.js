@@ -91,6 +91,7 @@ function loadPage(apiPath) {
         renderAllPage(data);
       }
 
+      renderPagination(data, apiPath);
       renderPosts(data.data);
     })
     .catch((error) => {
@@ -100,18 +101,94 @@ function loadPage(apiPath) {
     });
 }
 
+function renderPagination(data, apiPath) {
+  document
+    .querySelectorAll(".pagination")
+    .forEach((el) => el.parentElement.remove());
+
+  const postsContainer = document.querySelector("#posts-view");
+  let paginationHTML = `
+    <nav aria-label="Page navigation">
+      <ul class="pagination justify-content-center">
+  `;
+
+  if (data.has_previous) {
+    paginationHTML += `
+    <li class="page-item">
+      <a class="page-link" href="#" id="prev-page" tabindex="-1">Previous</a>
+    </li>
+  `;
+  }
+
+  for (let i = 1; i <= data.num_pages; i++) {
+    paginationHTML += `
+      <li class="page-item${i === data.current_page ? " active" : ""}">
+        <a class="page-link" href="#" data-page="${i}">${i}</a>
+      </li>
+    `;
+  }
+
+  if (data.has_next) {
+    paginationHTML += `
+    <li class="page-item">
+      <a class="page-link" href="#" id="next-page">Next</a>
+    </li>
+  `;
+  }
+
+  paginationHTML += `
+      </ul>
+    </nav>
+  `;
+
+  postsContainer.insertAdjacentHTML("afterend", paginationHTML);
+
+  document.querySelectorAll(".page-link[data-page]").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const page = link.getAttribute("data-page");
+      const sep = apiPath.includes("?") ? "&" : "?";
+      navigateTo(window.location.pathname, `${apiPath}${sep}page=${page}`);
+    });
+  });
+
+  const prev = document.querySelector("#prev-page");
+  if (prev && data.has_previous) {
+    prev.addEventListener("click", (e) => {
+      e.preventDefault();
+      const sep = apiPath.includes("?") ? "&" : "?";
+      navigateTo(
+        window.location.pathname,
+        `${apiPath}${sep}page=${data.current_page - 1}`
+      );
+    });
+  }
+
+  const next = document.querySelector("#next-page");
+  if (next && data.has_next) {
+    next.addEventListener("click", (e) => {
+      e.preventDefault();
+      const sep = apiPath.includes("?") ? "&" : "?";
+      navigateTo(
+        window.location.pathname,
+        `${apiPath}${sep}page=${data.current_page + 1}`
+      );
+    });
+  }
+}
+
 function renderProfilePage(data) {
   const viewTitle = document.querySelector("#view-title");
   const username = decodeURIComponent(
     window.location.pathname.replace("/profile/", "")
   );
-  const loggedUser = document
-    .querySelector("#username-link")
-    ?.textContent.trim();
+  const usernameLink = document.querySelector("#username-link");
+  const loggedUser = usernameLink?.textContent.trim();
   const isFollowing = data.followers.includes(loggedUser);
 
   let followButtonHTML = "";
-  if (username !== loggedUser) {
+  // Só mostra o botão se o usuário estiver autenticado (usernameLink existe) e não for o próprio perfil
+  if (usernameLink && username !== loggedUser) {
     followButtonHTML = `
       <button id="follow-button" class="btn btn-primary btn-sm" data-following="${isFollowing}">
         ${isFollowing ? "Unfollow" : "Follow"}
@@ -287,7 +364,7 @@ function toggleEdit(id, element) {
 }
 
 function toggleLike(id, postElement, likeIcon) {
-  fetch(`posts/${id}`, {
+  fetch(`/posts/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -309,6 +386,9 @@ function toggleLike(id, postElement, likeIcon) {
         likeIcon.classList.remove("bi-heart", "like-icon");
         likeIcon.classList.add("bi-heart-fill", "like-icon");
         likeIcon.style.color = "red";
+
+        likeIcon.classList.add("pop");
+        setTimeout(() => likeIcon.classList.remove("pop"), 300);
       } else {
         likeIcon.classList.remove("bi-heart-fill");
         likeIcon.classList.add("bi-heart");
