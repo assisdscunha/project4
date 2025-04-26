@@ -159,6 +159,7 @@ function renderPosts(postsData) {
     postElement.classList.add("post-element", "card");
     const heartClass = post.liked ? "bi-heart-fill" : "bi-heart";
     const heartStyleColor = post.liked ? "color:red" : "";
+    const isPostUser = post.user === currentUser;
 
     postElement.innerHTML = `
       <div class="card-body">
@@ -170,6 +171,11 @@ function renderPosts(postsData) {
         <div class="d-flex align-items-center">
           <span class="like-count mr-2">${post.likes}</span>
           <i class="bi ${heartClass} like-icon" style="${heartStyleColor}"></i>
+          ${
+            isPostUser
+              ? '<i class="bi bi-pencil-square ml-2" style="cursor: pointer"></i>'
+              : ""
+          }
         </div>
       </div>
     `;
@@ -179,24 +185,74 @@ function renderPosts(postsData) {
     });
 
     const likeIcon = postElement.querySelector(".like-icon");
+    const editIcon = postElement.querySelector(".bi.bi-pencil-square");
     likeIcon.dataset.liked = post.liked;
 
-    likeIcon.addEventListener("click", () => toggleLike(post.id, postElement));
+    likeIcon.addEventListener("click", () =>
+      toggleLike(post.id, postElement, likeIcon)
+    );
     likeIcon.addEventListener("mouseenter", () => {
-      if (likeIcon.dataset.liked === "false") {
+      if (
+        likeIcon.dataset.liked === "false" &&
+        !likeIcon.classList.contains("bi-heart-fill")
+      ) {
         likeIcon.classList.add("bi-heart-fill");
         likeIcon.classList.remove("bi-heart");
       }
     });
     likeIcon.addEventListener("mouseleave", () => {
-      if (likeIcon.dataset.liked === "false") {
+      if (
+        likeIcon.dataset.liked === "false" &&
+        !likeIcon.classList.contains("bi-heart")
+      ) {
         likeIcon.classList.remove("bi-heart-fill");
         likeIcon.classList.add("bi-heart");
       }
     });
 
+    if (editIcon) {
+      editIcon.addEventListener("click", () =>
+        toggleEdit(post.id, postElement)
+      );
+    }
+
     postsContainer.appendChild(postElement);
   });
+}
+
+function toggleLike(id, postElement, likeIcon) {
+  fetch(`posts/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action: "toggle_like" }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Failed to toggle like");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      const likeCountElement = postElement.querySelector(".like-count");
+      likeCountElement.textContent = data.likes;
+      likeIcon.dataset.liked = data.liked;
+      if (data.liked) {
+        console.log("liked");
+        likeIcon.classList.remove("bi-heart", "like-icon");
+        likeIcon.classList.add("bi-heart-fill", "like-icon");
+        likeIcon.style.color = "red";
+      } else {
+        likeIcon.classList.remove("bi-heart-fill");
+        likeIcon.classList.add("bi-heart");
+        likeIcon.style.color = "";
+      }
+    })
+    .catch((error) => {
+      console.error("Error toggling like:", error);
+      showToast("⚠️ Failed to toggle like. Please try again.");
+    });
 }
 
 function insertNewPost() {
