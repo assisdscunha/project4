@@ -5,6 +5,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 
@@ -149,6 +150,28 @@ def post(request, post_id):
     else:
         return JsonResponse({"error": "GET or PUT request required."}, status=400)
 
+
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+@login_required
+def toggle_follow(request, username):
+    try:
+        target_user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found."}, status=404)
+    
+    if target_user == request.user:
+        return JsonResponse({"error": "You cannot follow yourself"}, status=400)
+
+    if request.user in target_user.followers.all():
+        target_user.followers.remove(request.user)
+        action = "unfollowed"
+    else:
+        target_user.followers.add(request.user)
+        action = "followed"
+
+    return JsonResponse({"message": f"Successfully {action} {username}.", "action": action}, status=200)
 
 def paginated_response(request, queryset):
     serialized = [item.serialize(current_user=request.user) for item in queryset]
