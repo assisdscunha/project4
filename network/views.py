@@ -137,7 +137,7 @@ def post(request, post_id):
         allowed_keys = {"body"}
         if not set(data.keys()).issubset(allowed_keys):
             return JsonResponse(
-                {"error": "Only 'body' or 'likes' fields are allowed."}, status=400
+                {"error": "Only 'body' field is allowed."}, status=400
             )
 
         if data.get("body") is not None:
