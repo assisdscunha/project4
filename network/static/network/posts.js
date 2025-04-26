@@ -1,8 +1,8 @@
 window.onpopstate = function (event) {
-  const uiPath = event.state?.uiPath;
-  const apiPath = event.state?.dataPath;
-  if (apiPath) {
-    navigateTo(uiPath, apiPath);
+  if (event.state && event.state.dataPath) {
+    navigateTo(event.state.uiPath, event.state.dataPath, false);
+  } else {
+    loadURL(window.location.pathname);
   }
 };
 
@@ -12,10 +12,12 @@ function historyPush(uiPath, dataPath) {
   }
 }
 
-function navigateTo(uiPath, dataPath) {
+function navigateTo(uiPath, dataPath, pushHistory = true) {
   console.log("Navigate to: ", uiPath);
   console.log("API Path: ", dataPath);
-  historyPush(uiPath, dataPath);
+  if (pushHistory) {
+    historyPush(uiPath, dataPath);
+  }
   loadPosts(dataPath);
 }
 
