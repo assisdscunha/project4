@@ -1,22 +1,64 @@
+window.onpopstate = function (event) {
+  const uiPath = event.state?.uiPath;
+  const apiPath = event.state?.dataPath;
+  if (apiPath) {
+    navigateTo(uiPath, apiPath);
+  }
+};
+
+function historyPush(uiPath, dataPath) {
+  if (window.location.pathname !== uiPath) {
+    history.pushState({ uiPath, dataPath }, "", uiPath);
+  }
+}
+
+function navigateTo(uiPath, dataPath) {
+  console.log("Navigate to: ", uiPath);
+  console.log("API Path: ", dataPath);
+  historyPush(uiPath, dataPath);
+  loadPosts(dataPath);
+}
+
+function loadURL(path) {
+  if (path.startsWith("/profile/")) {
+    const username = decodeURIComponent(path.replace("/profile/", ""));
+    navigateTo(`/profile/${username}`, `/posts/profile/${username}`);
+  } else if (path === "/following") {
+    navigateTo("/following", "/posts/following");
+  } else if (path === "/all" || path === "/") {
+    navigateTo("/all", "/posts/all");
+  } else {
+    // If the URL is not recognized, it will redirect to the home page
+    navigateTo("/all", "/posts/all");
+  }
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   const usernameLink = document.querySelector("#username-link");
   if (usernameLink) {
-    usernameLink.addEventListener("click", () =>
-      loadPosts(`profile/${usernameLink.textContent.trim()}`)
-    );
+    usernameLink.addEventListener("click", () => {
+      const username = usernameLink.textContent.trim();
+      console.log("Navigating..");
+      navigateTo(`/profile/${username}`, `/posts/profile/${username}`);
+      console.log("Done!");
+    });
   }
-  document
-    .querySelector("#allposts-link")
-    .addEventListener("click", () => loadPosts("all"));
+  document.querySelector("#allposts-link").addEventListener("click", () => {
+    navigateTo("/all", "/posts/all");
+  });
   const followingLink = document.querySelector("#following-link");
   if (followingLink) {
-    followingLink.addEventListener("click", () => loadPosts("following"));
+    followingLink.addEventListener("click", () => {
+      navigateTo("/following", "/posts/following");
+    });
   }
   const form = document.querySelector("#new-post-form");
   if (form) {
     form.onsubmit = insertNewPost;
   }
-  loadPosts("all");
+  const path = window.location.pathname;
+
+  loadURL(path);
 });
 
 function loadPosts(page_name) {
@@ -27,7 +69,7 @@ function loadPosts(page_name) {
   document.querySelector("#following-view").style.display = "none";
   document.querySelector("#profile-view").style.display = "none";
 
-  fetch(`/posts/${page_name}`)
+  fetch(page_name)
     .then((response) => response.json())
     .then((data) => {
       document.querySelector(
@@ -38,7 +80,7 @@ function loadPosts(page_name) {
         postElement.classList.add("post-element", "card");
         console.log(post.liked);
         const heartClass = post.liked ? "bi-heart-fill" : "bi-heart";
-        const hearStyleColor = post.liked ? "color:red" : "color:";
+        const heartStyleColor = post.liked ? "color:red" : "color:";
         postElement.innerHTML = `
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-2">
@@ -48,13 +90,13 @@ function loadPosts(page_name) {
           <p class="card-text">${post.body}</p>
           <div class="d-flex align-items-center">
             <span class="like-count mr-2">${post.likes}</span>
-            <i class="bi ${heartClass} like-icon" style="${hearStyleColor}"></i>
+            <i class="bi ${heartClass} like-icon" style="${heartStyleColor}"></i>
           </div>
         </div>`;
         postElement
           .querySelector(".card-title")
           .addEventListener("click", () => {
-            loadPosts(`profile/${post.user}`);
+            navigateTo(`/profile/${post.user}`, `/posts/profile/${post.user}`);
           });
         const likeIcon = postElement.querySelector(".like-icon");
         likeIcon.dataset.liked = post.liked;
@@ -101,6 +143,11 @@ function loadPosts(page_name) {
 
         postsContainer.appendChild(postElement);
       });
+    })
+    .catch((error) => {
+      console.error("Error loading posts:", error);
+      postsContainer.innerHTML =
+        "<p>Failed to load posts. Please try again later.</p>";
     });
 }
 
@@ -118,7 +165,8 @@ function insertNewPost() {
   })
     .then((result) => {
       console.log(result);
-      loadPosts("all");
+      document.querySelector("#post-body").value = "";
+      navigateTo("/all", "/posts/all");
     })
     .catch((error) => {
       console.error("Erro ao criar o post:", error);

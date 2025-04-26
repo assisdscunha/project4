@@ -1,5 +1,5 @@
 
-from django.urls import path
+from django.urls import path, re_path
 
 from . import views
 
@@ -14,4 +14,7 @@ urlpatterns = [
     path("posts/<int:post_id>", views.post, name="get_post"),
     path("posts/profile/<str:username>", views.handle_profile, name="profile"),
     path("posts/<str:page_name>", views.page, name="page"),
+    
+    # Catch for frontend
+    re_path(r"^(all|following|profile/[^/]+)?/?$", views.index, name="spa-catchall"),
 ]
